@@ -1,8 +1,9 @@
 # Log4jHotPatch
 
-This is a tool which injects a Java agent into a running JVM process. The agent will attempt to patch the `lookup()` method of all loaded `org.apache.logging.log4j.core.lookup.JndiLookup` instances to unconditionally return the string "Patched JndiLookup::lookup()". It is designed to address the [CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228/) remote code execution vulnerability in Log4j without restarting the Java process. This tool will also address [CVE-2021-45046](https://nvd.nist.gov/vuln/detail/CVE-2021-45046/).
+This is a tool which injects a Java agent into a running JVM process. The agent will attempt to patch the `lookup()` method of all loaded `org.apache.logging.log4j.core.lookup.JndiLookup` instances to unconditionally return the string "Patched JndiLookup::lookup()". It is designed to address the [CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228/) remote code execution vulnerability in Log4j without restarting the Java process. This tool will also address [CVE-2021-45046](https://nvd.nist.gov/vuln/detail/CVE-2021-45046/).  
+The tool also provides information about affected processes (see Visibility).
 
-This has been currently only tested with JDK 8, 11, 15 and 17 on Linux!
+This has been currently only tested with JDK 8, 11, 15 and 17 on Linux and JDK 8, 11 and 13 on Windows.
 
 ## Building
 ### Gradle
