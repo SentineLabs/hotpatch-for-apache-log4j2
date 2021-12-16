@@ -117,6 +117,6 @@ it means the target process has a security manager installed. Look for this comm
 ```
 -Djava.security.policy=/local/apollo/.../apollo-security.policy
 ```
-If you encounter this error, make sure you are using the latest version of the tool
+If you encounter this error, make sure you are using the latest version of the tool.
 
 **Important:** If you attempted to patch as the wrong user, you may need to delete `.attach_pid<pid>` files (found in `/tmp` and/or the CWD of the VM process) before trying again. These files need to have the right ownership for attach to succeed.
