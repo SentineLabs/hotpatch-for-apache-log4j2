@@ -53,6 +53,25 @@ There are a set of tests that can be run outside Gradle or Maven.
 build-tools/bin/run_tests.sh Log4jHotPatch.jar <JDK_ROOT>
 ```
 
+## Visibility
+If the target application is using Java version <= 11, then for each Java process, a log file will be written to the temp folder with log4j status information.  
+On Windows machines the log path is:
+```
+C:\Windows\Temp\log4j_vis_%s.log
+```
+On Linux machines it's:
+```
+/tmp/log4j_vis_%s.log
+```
+The log files will contain a json of this format:
+```
+{"log4j_loaded": bool, "log4j_ge_2_10": bool, "formatMsgNoLookups": bool}
+```
+The `log4j_loaded` field indicates whether the log4j library is loaded into that Java process.  
+The `log4j_ge_2_10` field indicates whether the version of log4j library is >= 2.10.  
+And the `formatMsgNoLookups` is relevant only in case the version is >= 2.10, and indicated the value of the `FORMAT_MESSAGES_PATTERN_DISABLE_LOOKUPS` variable.  
+
+
 ## Known issues
 
 If you get an error like:
