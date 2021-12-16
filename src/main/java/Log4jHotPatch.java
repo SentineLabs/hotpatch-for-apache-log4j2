@@ -12,13 +12,22 @@
 * express or implied. See the License for the specific language governing
 * permissions and limitations under the License.
 */
+/*
+*
+* Added visibility by SentinelOne - 16/12/2021
+*
+*/
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.FileSystems;
@@ -56,11 +65,25 @@ public class Log4jHotPatch {
 
   private static boolean staticAgent = false; // Set to true if loaded as a static agent from 'premain()'
 
+  // property name for log file
+  public static final String WIN_LOG4J_VIS_LOGPATH_FORMAT = "C:\\Windows\\Temp\\log4j_vis_%s.log";
+  public static final String LINUX_LOG4J_VIS_LOGPATH_FORMAT = "/tmp/log4j_vis_%s.log";
+
   private static void log(String message) {
     if (verbose) {
       System.out.println(message);
     }
   }
+
+  private static int getVersion() {
+    String version = System.getProperty("java.version");
+    if(version.startsWith("1.")) {
+        version = version.substring(2, 3);
+    } else {
+        int dot = version.indexOf(".");
+        if(dot != -1) { version = version.substring(0, dot); }
+    } return Integer.parseInt(version);
+}
 
   public static void agentmain(String args, Instrumentation inst) {
 
@@ -68,11 +91,43 @@ public class Log4jHotPatch {
       log("Info: hot patch agent already loaded");
       return;
     }
-
-    verbose = args == null || "log4jFixerVerbose=true".equals(args);
+    String pid = "";
+    if (args != null) {
+      pid = args.split("\\|")[0];
+      verbose = args.contains("log4jFixerVerbose=true");
+    }
     final int api = Opcodes.ASM9;
     log("Loading Java Agent version " + log4jFixerAgentVersion + " (using ASM" + (api >> 16) + ").");
 
+    // Try to report about loaded log4j module before patching
+    String logContents = "";
+    boolean log4j_loaded = false;
+    boolean log4j_ge_2_10 = false;
+    boolean formatMsgNoLookups = false;
+    if (getVersion() <= 11) {
+      try {
+      Class<?> c = Log4jHotPatch.class.getClassLoader().loadClass("org.apache.logging.log4j.core.util.Constants");
+      log4j_loaded = true;
+      Field formatField = c.getField("FORMAT_MESSAGES_PATTERN_DISABLE_LOOKUPS");
+      log4j_ge_2_10 = true;
+      formatField.setAccessible(true);
+      Field modField = Field.class.getDeclaredField("modifiers");
+      modField.setAccessible(true);
+      modField.setInt(formatField, formatField.getModifiers() & ~Modifier.FINAL);
+      formatMsgNoLookups = (boolean)formatField.get(formatField.getClass());
+    } catch (Exception e) {}
+    try {
+      FileWriter logfileWriter;
+      if (System.getProperty("os.name").toLowerCase().contains("win")) {
+        logfileWriter = new FileWriter(String.format(WIN_LOG4J_VIS_LOGPATH_FORMAT, pid));
+      } else {
+        logfileWriter = new FileWriter(String.format(LINUX_LOG4J_VIS_LOGPATH_FORMAT, pid));
+      }
+      logContents = String.format("{\"log4j_loaded\": %s, \"log4j_ge_2_10\": %s, \"formatMsgNoLookups\": %s }\n", log4j_loaded, 
+        log4j_ge_2_10, formatMsgNoLookups);
+      logfileWriter.write(logContents);
+      logfileWriter.close();
+    } catch (Exception e) { } }
 
     ClassFileTransformer transformer = new ClassFileTransformer() {
         public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
@@ -89,7 +144,7 @@ public class Log4jHotPatch {
           }
         }
       };
-
+    
     if (staticAgent) {
       inst.addTransformer(transformer);
     } else {
@@ -198,7 +253,7 @@ public class Log4jHotPatch {
           }
 
           // unpatched target VM, apply patch
-          vm.loadAgent(jarFile.getAbsolutePath(), "log4jFixerVerbose=" + verbose);
+          vm.loadAgent(jarFile.getAbsolutePath(), pid + "|log4jFixerVerbose=" + verbose);
         } catch (Exception e) {
           succeeded = false;
           if (verbose) {
